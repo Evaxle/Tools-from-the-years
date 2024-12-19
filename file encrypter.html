@@ -78,7 +78,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadButton = document.getElementById('loadButton');
     const buttonsContainer = document.getElementById('buttonsContainer');
 
-    // Helper function to encrypt data
     function encrypt(data, pin) {
         const textToChars = text => text.split('').map(c => c.charCodeAt(0));
         const byteHex = n => ("0" + Number(n).toString(16)).substr(-2);
@@ -91,7 +90,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .join('');
     }
 
-    // Helper function to decrypt data
     function decrypt(data, pin) {
         const textToChars = text => text.split('').map(c => c.charCodeAt(0));
         const applySaltToChar = code => textToChars(pin).reduce((a, b) => a ^ b, code);
@@ -103,12 +101,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .join('');
     }
 
-    // Helper function to convert ArrayBuffer to binary string
     function arrayBufferToBinary(buffer) {
         return Array.prototype.map.call(new Uint8Array(buffer), x => ('00000000' + x.toString(2)).slice(-8)).join('');
     }
 
-    // Helper function to convert binary string to ArrayBuffer
     function binaryToArrayBuffer(binary) {
         const byteArray = binary.match(/.{1,8}/g).map(byte => parseInt(byte, 2));
         return new Uint8Array(byteArray).buffer;
@@ -131,9 +127,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const binaryContent = file ? arrayBufferToBinary(content) : textToBinary(content);
             const encryptedContent = encrypt(binaryContent, pin);
             const json = JSON.stringify({
-                pin: encrypt(pin, pin), // Encrypting PIN
-                content: encryptedContent, // Encrypting content
-                fileType: file ? file.type : 'text/plain' // Storing the file type
+                pin: encrypt(pin, pin), 
+                content: encryptedContent, 
+                fileType: file ? file.type : 'text/plain' 
             });
             const blob = new Blob([json], { type: "application/json" });
             const link = document.createElement('a');
@@ -163,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.onload = function(event) {
             const json = JSON.parse(event.target.result);
             if (decrypt(json.pin, unlockPin) === unlockPin) {
-                const binaryContent = decrypt(json.content, unlockPin); // Decrypting content
+                const binaryContent = decrypt(json.content, unlockPin); 
                 const content = json.fileType === 'text/plain' ? binaryToText(binaryContent) : binaryToArrayBuffer(binaryContent); // Convert binary back to text or ArrayBuffer
 
                 const fileType = json.fileType;
@@ -172,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     addDownloadButton(nameInput.value, content, fileType);
                 } else {
                     addButton("Loaded Content", content);
-                    alert("Content: " + content); // Example to show the content
+                    alert("Content: " + content); 
                 }
             } else {
                 alert("Invalid PIN");
