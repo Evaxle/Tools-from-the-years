@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Editor</title>
+    <style>
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: white; color: black; }
+        .top-bar { display: flex; align-items: left; padding: 5px; background-color: black; }
+        .editor { flex: 1; display: flex; }
+        .editor textarea { width: 100%; height: 100%; color: white; border: none; resize: none; padding: 10px; font-family: monospace; font-size: 16px; outline: none; caret-color: green; background-color: black; }
+        button { color: white; background-color: black; border: none; }
+        #modeSwitcher { color: white; background-color: black; border: none; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <button id="savebtn">Save</button>
+        <button id="runHtmlBtn">Run HTML</button>
+        <button id="runJsBtn">Run JS</button>
+        <button id="runPythonBtn">Run Python</button>
+        <button id="loadFileBtn">Load File</button>
+        <select id="modeSwitcher">
+            <option value="light">Light Mode</option>
+            <option value="dark" selected>Dark Mode</option>
+        </select>
+    </div>
+    <div class="editor">
+        <textarea id="editor" data-filename="untitled.js"></textarea>
+    </div>
+    <script>
+        const editor = document.getElementById('editor');
+
+        document.getElementById('savebtn').addEventListener('click', save);
+        document.getElementById('runHtmlBtn').addEventListener('click', runHtml);
+        document.getElementById('runJsBtn').addEventListener('click', runJs);
+        document.getElementById('runPythonBtn').addEventListener('click', runPython);
+        document.getElementById('loadFileBtn').addEventListener('click', loadFile);
+        document.getElementById('modeSwitcher').addEventListener('change', switchMode);
+        
+        editor.addEventListener('input', () => {
+            localStorage.setItem('editorContent', editor.value);
+        });
+
+        window.onload = () => {
+            if (localStorage.getItem('editorContent')) {
+                editor.value = localStorage.getItem('editorContent');
+            }
+        };
+
+        function saveFile(filename, content) {
+            var blob = new Blob([content], { type: 'text/plain' });
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+        }
+
+        function save() {
+            var filename = prompt('Enter file name', editor.getAttribute('data-filename'));
+            if (filename) {
+                saveFile(filename, editor.value);
+            }
+        }
+
+        function runHtml() {
+            var code = editor.value;
+            var win = window.open('about:blank');
+            win.document.open();
+            win.document.write(code);
+            win.document.close();
+        }
+
+        function runJs() {
+            var code = editor.value;
+            var win = window.open('about:blank');
+            win.document.open();
+            win.document.write('<html><body><script>' + code + '<' + '/script></html>');
+            win.document.close();
+        }
+
+        function runPython() {
+            var code = editor.value;
+            var output;
+            try {
+                // Simulating Python code execution with a simple string manipulation
+                output = `Python executed:\n\n${code.replace(/print\((.*)\)/g, '$1')}`;
+            } catch (e) {
+                output = `Error: ${e.message}`;
+            }
+            var win = window.open('about:blank');
+            win.document.open();
+            win.document.write('<html><body><pre>' + output + '</pre></body></html>');
+            win.document.close();
+        }
+
+        function loadFile() {
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.onchange = e => {
+                var file = e.target.files[0];
+                var reader = new FileReader();
+                reader.onload = event => {
+                    editor.value = event.target.result;
+                    localStorage.setItem('editorContent', editor.value);
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function switchMode() {
+            var mode = document.getElementById('modeSwitcher').value;
+            if (mode === 'light') {
+                document.body.style.backgroundColor = '#f5f5f5';
+                document.body.style.color = '#2e2e2e';
+                editor.style.backgroundColor = '#ffffff';
+                editor.style.color = '#000000';
+            } else {
+                document.body.style.backgroundColor = 'black';
+                document.body.style.color = '#ffffff';
+                editor.style.backgroundColor = '#000000';
+                editor.style.color = 'white';
+            }
+        }
+
+        switchMode();
+    </script>
+</body>
+</html>
+

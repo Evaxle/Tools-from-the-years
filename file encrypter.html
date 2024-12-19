@@ -1,0 +1,229 @@
+<style>
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#container {
+    background: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+input, button {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+button {
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+}
+button:hover {
+    background: #0056b3;
+}
+#buttonsContainer button {
+    margin-top: 10px;
+    display: block;
+}
+</style>
+<div id="container">
+    <h2>File Encrypter</h2>
+    <div>
+        <label for="fileInput">Upload a file: </label>
+        <input type="file" id="fileInput" accept=".txt,.pdf,.docx">
+    </div>
+    <div>
+        <label for="textInput">Enter text: </label>
+        <input type="text" id="textInput">
+    </div>
+    <div>
+        <label for="pinInput">Enter a PIN: </label>
+        <input type="password" id="pinInput">
+    </div>
+    <div>
+        <label for="nameInput">Enter file name: </label>
+        <input type="text" id="nameInput">
+    </div>
+    <button id="saveButton">Save as JSON</button>
+    <div>
+        <label for="jsonInput">Upload JSON/PDF/Word file: </label>
+        <input type="file" id="jsonInput" accept=".json,.pdf,.docx">
+    </div>
+    <div>
+        <label for="unlockPinInput">Enter PIN to unlock: </label>
+        <input type="password" id="unlockPinInput">
+    </div>
+    <button id="loadButton">Load File</button>
+    <div id="buttonsContainer"></div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('fileInput');
+    const textInput = document.getElementById('textInput');
+    const pinInput = document.getElementById('pinInput');
+    const nameInput = document.getElementById('nameInput');
+    const saveButton = document.getElementById('saveButton');
+    const jsonInput = document.getElementById('jsonInput');
+    const unlockPinInput = document.getElementById('unlockPinInput');
+    const loadButton = document.getElementById('loadButton');
+    const buttonsContainer = document.getElementById('buttonsContainer');
+
+    // Helper function to encrypt data
+    function encrypt(data, pin) {
+        const textToChars = text => text.split('').map(c => c.charCodeAt(0));
+        const byteHex = n => ("0" + Number(n).toString(16)).substr(-2);
+        const applySaltToChar = code => textToChars(pin).reduce((a, b) => a ^ b, code);
+
+        return data.split('')
+            .map(textToChars)
+            .map(applySaltToChar)
+            .map(byteHex)
+            .join('');
+    }
+
+    // Helper function to decrypt data
+    function decrypt(data, pin) {
+        const textToChars = text => text.split('').map(c => c.charCodeAt(0));
+        const applySaltToChar = code => textToChars(pin).reduce((a, b) => a ^ b, code);
+
+        return data.match(/.{1,2}/g)
+            .map(hex => parseInt(hex, 16))
+            .map(applySaltToChar)
+            .map(charCode => String.fromCharCode(charCode))
+            .join('');
+    }
+
+    // Helper function to convert ArrayBuffer to binary string
+    function arrayBufferToBinary(buffer) {
+        return Array.prototype.map.call(new Uint8Array(buffer), x => ('00000000' + x.toString(2)).slice(-8)).join('');
+    }
+
+    // Helper function to convert binary string to ArrayBuffer
+    function binaryToArrayBuffer(binary) {
+        const byteArray = binary.match(/.{1,8}/g).map(byte => parseInt(byte, 2));
+        return new Uint8Array(byteArray).buffer;
+    }
+
+    saveButton.addEventListener('click', function() {
+        const text = textInput.value;
+        const pin = pinInput.value;
+        const fileName = nameInput.value || 'data';
+        const file = fileInput.files[0];
+
+        if (!pin) {
+            alert("Please enter a PIN");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = file ? event.target.result : text;
+            const binaryContent = file ? arrayBufferToBinary(content) : textToBinary(content);
+            const encryptedContent = encrypt(binaryContent, pin);
+            const json = JSON.stringify({
+                pin: encrypt(pin, pin), // Encrypting PIN
+                content: encryptedContent, // Encrypting content
+                fileType: file ? file.type : 'text/plain' // Storing the file type
+            });
+            const blob = new Blob([json], { type: "application/json" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${fileName}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        if (file) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.onload();
+        }
+    });
+    loadButton.addEventListener('click', function() {
+        const file = jsonInput.files[0];
+        const unlockPin = unlockPinInput.value;
+
+        if (!unlockPin) {
+            alert("Please enter a PIN to unlock");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const json = JSON.parse(event.target.result);
+            if (decrypt(json.pin, unlockPin) === unlockPin) {
+                const binaryContent = decrypt(json.content, unlockPin); // Decrypting content
+                const content = json.fileType === 'text/plain' ? binaryToText(binaryContent) : binaryToArrayBuffer(binaryContent); // Convert binary back to text or ArrayBuffer
+
+                const fileType = json.fileType;
+                if (fileType === "application/pdf" || fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+                    alert("This document cannot be displayed as text. It can only be downloaded.");
+                    addDownloadButton(nameInput.value, content, fileType);
+                } else {
+                    addButton("Loaded Content", content);
+                    alert("Content: " + content); // Example to show the content
+                }
+            } else {
+                alert("Invalid PIN");
+            }
+        };
+
+        if (file) {
+            reader.readAsText(file);
+        }
+    });
+
+    function addButton(name, content) {
+        const button = document.createElement('button');
+        button.textContent = name;
+        button.addEventListener('click', function() {
+            const blob = new Blob([content], { type: "text/plain" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = "content.txt";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+        buttonsContainer.appendChild(button);
+    }
+
+    function addDownloadButton(name, content, fileType) {
+        const button = document.createElement('button');
+        button.textContent = `Download ${name}`;
+        button.addEventListener('click', function() {
+            let mimeType;
+            switch (fileType) {
+                case "application/pdf":
+                    mimeType = "application/pdf";
+                    break;
+                case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    break;
+                default:
+                    mimeType = "application/octet-stream";
+            }
+            const blob = new Blob([content], { type: mimeType });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+        buttonsContainer.appendChild(button);
+    }
+});
+
+</script>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code to Binary Converter and Executor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #0f0;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background-color: #111;
+            border-right: 2px solid #0f0;
+        }
+        .tab:last-child {
+            border-right: none;
+        }
+        .tab.active {
+            background-color: #222;
+            font-weight: bold;
+        }
+        .section {
+            display: none;
+            flex: 1;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .section.active {
+            display: flex;
+        }
+        .flex-row {
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+        .column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        textarea {
+            background-color: #000;
+            color: #0f0;
+            font-family: monospace;
+            border: 2px solid #0f0;
+            padding: 10px;
+            margin-bottom: 10px;
+            resize: none;
+            flex: 1;
+        }
+        button, select {
+            background-color: #111;
+            color: #0f0;
+            border: 2px solid #0f0;
+            padding: 10px;
+            font-family: monospace;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="tabs">
+        <div class="tab active" onclick="showSection('converter')">Converter</div>
+        <div class="tab" onclick="showSection('outputter')">Outputter</div>
+    </div>
+
+    <div class="section active" id="converter">
+        <h2>Convert Code to Binary</h2>
+        <div class="flex-row">
+            <div class="column">
+                <textarea id="codeInput" placeholder="Enter your code here..."></textarea>
+                <select id="codeTypeTop">
+                    <option value="html">HTML</option>
+                    <option value="js">JavaScript</option>
+                </select>
+                <button onclick="convertToBinary()">Convert to Binary</button>
+            </div>
+            <div class="column">
+                <textarea id="binaryOutput" readonly placeholder="Binary output..."></textarea>
+                <button onclick="copyToClipboard('binaryOutput')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="outputter">
+        <h2>Execute Binary as Code</h2>
+        <div class="flex-row">
+            <div class="column">
+                <textarea id="binaryInput" placeholder="Enter binary code here..."></textarea>
+                <select id="codeTypeBottom">
+                    <option value="html">HTML</option>
+                    <option value="js">JavaScript</option>
+                </select>
+                <button onclick="executeBinary()">Execute</button>
+            </div>
+            <div class="column">
+                <div id="output" class="half-width"></div>
+                <button onclick="copyToClipboard('output')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[onclick="showSection('${sectionId}')"]`).classList.add('active');
+        }
+
+        function textToBinary(text) {
+            return text.split('').map(char => {
+                return char.charCodeAt(0).toString(2).padStart(8, '0');
+            }).join(' ');
+        }
+
+        function binaryToText(binary) {
+            return binary.split(' ').map(bin => {
+                return String.fromCharCode(parseInt(bin, 2));
+            }).join('');
+        }
+
+        function convertToBinary() {
+            const codeInput = document.getElementById('codeInput').value;
+            const binaryOutput = document.getElementById('binaryOutput');
+            binaryOutput.value = textToBinary(codeInput);
+        }
+
+        function copyToClipboard(elementId) {
+            const textarea = document.getElementById(elementId);
+            textarea.select();
+            document.execCommand('copy');
+        }
+
+        function executeBinary() {
+            const binaryInput = document.getElementById('binaryInput').value;
+            const codeType = document.getElementById('codeTypeBottom').value;
+            const code = binaryToText(binaryInput);
+
+            if (codeType === 'html') {
+                const newWindow = window.open();
+                newWindow.document.write(code);
+            } else if (codeType === 'js') {
+                try {
+                    eval(code);
+                } catch (error) {
+                    alert('Error executing JavaScript: ' + error.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

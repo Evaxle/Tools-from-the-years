@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Web Editor</title>
+<style>
+body {
+display: flex;
+height: 100vh;
+margin: 0;
+align-items: stretch;
+font-family: Arial, sans-serif;
+}
+#file-manager, #editor, #preview {
+flex: 1;
+padding: 1em;
+box-sizing: border-box;
+}
+#file-manager {
+background: #f0f0f0;
+border-right: 1px solid #ccc;
+}
+#editor {
+background: #fff;
+border-left: 1px solid #ccc;
+border-right: 1px solid #ccc;
+}
+#preview {
+background: #f9f9f9;
+}
+#add-file {
+margin-bottom: 1em;
+padding: 0.5em;
+background: #007bff;
+color: #fff;
+border: none;
+cursor: pointer;
+}
+#add-file:hover {
+background: #0056b3;
+}
+#files div {
+padding: 0.5em;
+cursor: pointer;
+}
+#files div:hover {
+background: #ddd;
+}
+#save-file, #save-as-file {
+margin-top: 1em;
+padding: 0.5em;
+background: #28a745;
+color: #fff;
+border: none;
+cursor: pointer;
+}
+#save-file:hover, #save-as-file:hover {
+background: #218838;
+}
+</style>
+</head>
+<body>
+<div id="file-manager">
+<button id="add-file">Add File</button>
+<div id="files"></div>
+<button id="save-file">Save</button>
+<button id="save-as-file">Save As</button>
+</div>
+<textarea id="editor" list="tags" oninput="showSuggestions(this.value)"></textarea>
+<iframe id="preview"></iframe>
+
+<script>
+var editor = document.getElementById('editor');
+var preview = document.getElementById('preview');
+var fileManager = document.getElementById('files');
+var addFileButton = document.getElementById('add-file');
+var saveFileButton = document.getElementById('save-file');
+var saveAsFileButton = document.getElementById('save-as-file');
+
+// Initialize localStorage if it's empty
+if (!localStorage.getItem('files')) {
+localStorage.setItem('files', JSON.stringify({'index.html': ''}));
+localStorage.setItem('currentFile', 'index.html');
+}
+
+// Load files from localStorage to file manager
+var files = JSON.parse(localStorage.getItem('files'));
+for (var fileName in files) {
+addFileToManager(fileName);
+}
+
+// Load last edited file
+var currentFile = localStorage.getItem('currentFile');
+if (currentFile && files[currentFile]) {
+editor.setAttribute('data-filename', currentFile);
+editor.value = files[currentFile];
+preview.srcdoc = files[currentFile];
+}
+
+// Add file button event
+addFileButton.onclick = function() {
+var fileName = prompt('Enter file name');
+var fileType = prompt('Enter file type (html, css, js)');
+if (fileName && fileType) {
+fileName += '.' + fileType;
+files[fileName] = '';
+localStorage.setItem('files', JSON.stringify(files));
+addFileToManager(fileName);
+}
+};
+
+// Update preview whenever editor content changes
+editor.oninput = function() {
+preview.srcdoc = editor.value;
+files[editor.getAttribute('data-filename')] = editor.value;
+localStorage.setItem('files', JSON.stringify(files));
+localStorage.setItem('currentFile', editor.getAttribute('data-filename'));
+};
+
+// Save files to localStorage every second
+setInterval(function() {
+localStorage.setItem('files', JSON.stringify(files));
+}, 1000);
+
+function addFileToManager(fileName) {
+var fileDiv = document.createElement('div');
+fileDiv.textContent = fileName;
+fileDiv.onclick = function() {
+// Load clicked file from localStorage
+editor.setAttribute('data-filename', fileName);
+editor.value = files[fileName];
+preview.srcdoc = files[fileName];
+};
+fileManager.appendChild(fileDiv);
+
+// Update preview whenever editor content changes
+editor.onkeydown = function(event) {
+// Check if the key pressed is 'Enter'
+if (event.key === 'Enter') {
+// Get the current value of the text area
+var input = editor.value;
+
+// Check if the file is an HTML file
+var fileName = editor.getAttribute('data-filename');
+if (fileName.endsWith('.html')) {
+// Use a regular expression to find the tag
+var match = input.slice(0, editor.selectionStart).match(/<(\w+)>$/);
+
+// If a tag is found
+if (match) {
+// Get the tag name
+var tagName = match[1];
+
+// Create the closing tag
+var closingTag = `</${tagName}>`;
+
+// Insert the closing tag at the cursor position
+editor.value = input.slice(0, editor.selectionStart) + "\n" + closingTag + input.slice(editor.selectionStart);
+
+// Move the cursor to the position before the closing tag
+editor.selectionStart = editor.selectionEnd = editor.selectionStart - closingTag.length - 1;
+}
+}
+
+// Update the preview and save the file
+preview.srcdoc = editor.value;
+files[fileName] = editor.value;
+localStorage.setItem('files', JSON.stringify(files));
+}
+};
+
+// Add rename and delete options
+var optionsButton = document.createElement('button');
+optionsButton.textContent = '...';
+optionsButton.onclick = function(event) {
+event.stopPropagation(); // Prevent triggering fileDiv.onclick
+var option = prompt('Enter option (rename, delete)');
+if (option === 'rename') {
+var newFileName = prompt('Enter new file name');
+if (newFileName) {
+files[newFileName] = files[fileName];
+delete files[fileName];
+localStorage.setItem('files', JSON.stringify(files));
+fileDiv.textContent = newFileName;
+if (localStorage.getItem('currentFile') === fileName) {
+localStorage.setItem('currentFile', newFileName);
+}
+}
+} else if (option === 'delete') {
+delete files[fileName];
+localStorage.setItem('files', JSON.stringify(files));
+fileManager.removeChild(fileDiv);
+}
+};
+fileDiv.appendChild(optionsButton);
+}
+
+// Save file to user's computer
+function saveFile(filename, content) {
+var blob = new Blob([content], {type: 'text/plain'});
+var link = document.createElement('a');
+link.href = URL.createObjectURL(blob);
+link.download = filename;
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+}
+
+// Save button event
+saveFileButton.onclick = function() {
+var filename = editor.getAttribute('data-filename');
+var content = editor.value;
+saveFile(filename, content);
+};
+
+// Save As button event
+saveAsFileButton.onclick = function() {
+var filename = prompt('Enter file name', editor.getAttribute('data-filename'));
+if (filename) {
+var content = editor.value;
+saveFile(filename, content);
+}
+};
+window.onload = function() {
+    if (confirm("Do you want to load your previous code?")) {
+        // Load the page with existing local storage data
+        console.log("Local storage data retained.");
+    } else {
+        // Delete all local storage data
+        localStorage.clear();
+document.getElementById('editor').value = '';
+        console.log("All local storage data deleted.");
+    }
+};
+
+</script>
+</body>
+</html>
